@@ -19,12 +19,18 @@ import java.util.Set;
 
 public final class ConfigParser {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigParser.class);
+
+
+
     /**
      * 指定Job配置路径，ConfigParser会解析Job、Plugin、Core全部信息，并以Configuration返回
      */
     public static Configuration parse(final String jobPath) {
         Configuration configuration = ConfigParser.parseJobConfig(jobPath);
+        return parseConfig(configuration);
 
+    }
+    public static Configuration parseConfig(Configuration configuration){
         configuration.merge(
                 ConfigParser.parseCoreConfig(CoreConstant.DATAX_CONF_PATH),
                 false);
@@ -68,6 +74,13 @@ public final class ConfigParser {
 
     private static Configuration parseCoreConfig(final String path) {
         return Configuration.from(new File(path));
+    }
+
+
+    public static Configuration parseJobConfigJson(final String jobContent) {
+        Configuration config = Configuration.from(jobContent);
+
+        return SecretUtil.decryptSecretKey(config);
     }
 
     public static Configuration parseJobConfig(final String path) {
