@@ -4,13 +4,16 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.datax.core.util.container.CoreConstant;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.methods.HttpGet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,7 +22,6 @@ import java.util.Set;
 
 public final class ConfigParser {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigParser.class);
-
 
 
     /**
@@ -50,15 +52,15 @@ public final class ConfigParser {
         pluginList.add(readerPluginName);
         pluginList.add(writerPluginName);
 
-        if(StringUtils.isNotEmpty(preHandlerName)) {
+        if (StringUtils.isNotEmpty(preHandlerName)) {
             pluginList.add(preHandlerName);
         }
-        if(StringUtils.isNotEmpty(postHandlerName)) {
+        if (StringUtils.isNotEmpty(postHandlerName)) {
             pluginList.add(postHandlerName);
         }
         try {
             configuration.merge(parsePluginConfig(new ArrayList<String>(pluginList)), false);
-        }catch (Exception e){
+        } catch (Exception e) {
             //吞掉异常，保持log干净。这里message足够。
             LOG.warn(String.format("插件[%s,%s]加载失败，1s后重试... Exception:%s ", readerPluginName, writerPluginName, e.getMessage()));
             try {
@@ -72,10 +74,16 @@ public final class ConfigParser {
         return configuration;
     }
 
-    private static Configuration parseCoreConfig(final String path) {
-        return Configuration.from(new File(path));
-    }
 
+    private static Configuration parseCoreConfig(final String path) {
+        Configuration configuration;
+        try {
+            configuration = Configuration.from(new File(path));
+        } catch (Exception e) {
+            configuration = Configuration.from(ClassLoader.getSystemResourceAsStream(path));
+        }
+        return configuration;
+    }
 
     public static Configuration parseJobConfigJson(final String jobContent) {
         Configuration config = Configuration.from(jobContent);
@@ -136,7 +144,7 @@ public final class ConfigParser {
         for (final String each : ConfigParser
                 .getDirAsList(CoreConstant.DATAX_PLUGIN_READER_HOME)) {
             Configuration eachReaderConfig = ConfigParser.parseOnePluginConfig(each, "reader", replicaCheckPluginSet, wantPluginNames);
-            if(eachReaderConfig!=null) {
+            if (eachReaderConfig != null) {
                 configuration.merge(eachReaderConfig, true);
                 complete += 1;
             }
@@ -145,7 +153,7 @@ public final class ConfigParser {
         for (final String each : ConfigParser
                 .getDirAsList(CoreConstant.DATAX_PLUGIN_WRITER_HOME)) {
             Configuration eachWriterConfig = ConfigParser.parseOnePluginConfig(each, "writer", replicaCheckPluginSet, wantPluginNames);
-            if(eachWriterConfig!=null) {
+            if (eachWriterConfig != null) {
                 configuration.merge(eachWriterConfig, true);
                 complete += 1;
             }
@@ -167,7 +175,7 @@ public final class ConfigParser {
 
         String pluginPath = configuration.getString("path");
         String pluginName = configuration.getString("name");
-        if(!pluginSet.contains(pluginName)) {
+        if (!pluginSet.contains(pluginName)) {
             pluginSet.add(pluginName);
         } else {
             throw DataXException.asDataXException(FrameworkErrorCode.PLUGIN_INIT_ERROR, "插件加载失败,存在重复插件:" + filePath);
